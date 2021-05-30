@@ -18,35 +18,33 @@ def self_attention(q, k, v, mask):
 
 
 class MultiHeadAttention(layers.Layer):
-    def __init__(self, d_model, num_head, seq_len_q, seq_len_kv):
+    def __init__(self, d_model, num_head):
         super(MultiHeadAttention, self).__init__()
         self.d_model = d_model
         self.num_head = num_head
-        self.seq_len_q = seq_len_q
-        self.seq_len_kv = seq_len_kv
         self.depth = d_model // num_head
         self.dense_q = layers.Dense(d_model)
         self.dense_k = layers.Dense(d_model)
         self.dense_v = layers.Dense(d_model)
         self.dense = layers.Dense(d_model)
 
-    def split(self, x, seq_len):
-        return tf.transpose(tf.reshape(x, (-1, seq_len, self.num_head, self.depth)), perm=[0, 2, 1, 3])
+    def split(self, x):
+        return tf.transpose(tf.reshape(x, (-1, x.shape[1], self.num_head, self.depth)), perm=[0, 2, 1, 3])
 
     def call(self, q, k, v, mask, training):
-        q = self.split(self.dense_q(q, training=training), self.seq_len_q)
-        k = self.split(self.dense_k(k, training=training), self.seq_len_kv)
-        v = self.split(self.dense_v(v, training=training), self.seq_len_kv)
+        q = self.split(self.dense_q(q, training=training))
+        k = self.split(self.dense_k(k, training=training))
+        v = self.split(self.dense_v(v, training=training))
         attn_out = self_attention(q, k, v, mask)
         attn_out = tf.transpose(attn_out, perm=[0, 2, 1, 3])
-        attn_out = tf.reshape(attn_out, (-1, self.seq_len_q, self.d_model))
+        attn_out = tf.reshape(attn_out, (-1, attn_out.shape[1], self.d_model))
         return self.dense(attn_out, training=training)
 
 
 class EncoderLayer(layers.Layer):
-    def __init__(self, d_model, dff, dropout, ln_epsilon, num_head, seq_len):
+    def __init__(self, d_model, dff, dropout, ln_epsilon, num_head):
         super(EncoderLayer, self).__init__()
-        self.mha = MultiHeadAttention(d_model, num_head, seq_len, seq_len)
+        self.mha = MultiHeadAttention(d_model, num_head)
         self.ffn = layers.Dense(dff, activation='relu')
         self.dense = layers.Dense(d_model)
         self.dropout1 = layers.Dropout(dropout)
@@ -66,10 +64,10 @@ class EncoderLayer(layers.Layer):
 
 
 class DecoderLayer(layers.Layer):
-    def __init__(self, d_model, dff, dropout, ln_epsilon, num_head, seq_len_dec, seq_len_enc):
+    def __init__(self, d_model, dff, dropout, ln_epsilon, num_head):
         super(DecoderLayer, self).__init__()
-        self.mha1 = MultiHeadAttention(d_model, num_head, seq_len_dec, seq_len_dec)
-        self.mha2 = MultiHeadAttention(d_model, num_head, seq_len_dec, seq_len_enc)
+        self.mha1 = MultiHeadAttention(d_model, num_head)
+        self.mha2 = MultiHeadAttention(d_model, num_head)
         self.ffn = layers.Dense(dff, activation='relu')
         self.dense = layers.Dense(d_model)
         self.dropout1 = layers.Dropout(dropout)
@@ -94,18 +92,38 @@ class DecoderLayer(layers.Layer):
 
 
 class Encoder(layers.Layer):
-    def __init__(self, d_model, dff, dropout, ln_epsilon, num_head, num_layer, seq_len, vocab_size_enc):
+    def __init__(self, d_model, dff, dropout, ln_epsilon, num_head, num_layer, pe, vocab_size):
         super(Encoder, self).__init__()
         self.d_model = d_model
         self.num_layer = num_layer
-        self.pe = make_pe(seq_len, d_model)
-        self.embedding = layers.Embedding(vocab_size_enc, d_model)
-        self.enc_layers = [EncoderLayer(d_model, dff, dropout, ln_epsilon, num_head, seq_len) for _ in range(num_layer)]
+        self.pe = pe
+        self.embedding = layers.Embedding(vocab_size, d_model)
+        self.enc_layers = [EncoderLayer(d_model, dff, dropout, ln_epsilon, num_head) for _ in range(num_layer)]
         self.dropout = layers.Dropout(dropout)
 
     def call(self, x, mask, training):
-        x = self.embedding(x, training=training) * tf.math.sqrt(tf.cast(self.d_model, tf.float32)) + self.pe
+        x = self.embedding(x, training=training) * tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x += self.pe[:x.shape[1], :]
         x = self.dropout(x, training=training)
         for k in range(self.num_layer):
             x = self.enc_layers[k](x, mask, training)
+        return x
+
+
+class Decoder(layers.Layer):
+    def __init__(self, d_model, dff, dropout, ln_epsilon, num_head, num_layer, pe, vocab_size):
+        super(Decoder, self).__init__()
+        self.d_model = d_model
+        self.num_layer = num_layer
+        self.pe = pe
+        self.embedding = layers.Embedding(vocab_size, d_model)
+        self.dec_layers = [DecoderLayer(d_model, dff, dropout, ln_epsilon, num_head) for _ in range(num_layer)]
+        self.dropout = layers.Dropout(dropout)
+
+    def call(self, x, enc_out, look_ahead_mask, padding_mask, training):
+        x = self.embedding(x, training=training) * tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x += self.pe[:x.shape[1], :]
+        x = self.dropout(x, training=training)
+        for k in range(self.num_layer):
+            x = self.dec_layers[k](x, enc_out, look_ahead_mask, padding_mask, training)
         return x
