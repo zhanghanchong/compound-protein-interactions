@@ -1,5 +1,13 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
+
+
+def make_pe(seq_len, d_model):
+    pe = np.arange(seq_len)[:, np.newaxis] / np.power(10000, np.arange(d_model)[np.newaxis, :] // 2 * 2 / d_model)
+    pe[:, 0::2] = np.sin(pe[:, 0::2])
+    pe[:, 1::2] = np.cos(pe[:, 1::2])
+    return tf.cast(pe, tf.float32)
 
 
 def self_attention(q, k, v, mask):
@@ -83,3 +91,21 @@ class DecoderLayer(layers.Layer):
         dropout3_out = self.dropout3(dense_out, training=training)
         ln3_out = self.ln3(dropout3_out + ln2_out, training=training)
         return ln3_out
+
+
+class Encoder(layers.Layer):
+    def __init__(self, d_model, dff, dropout, ln_epsilon, num_head, num_layer, seq_len, vocab_size_enc):
+        super(Encoder, self).__init__()
+        self.d_model = d_model
+        self.num_layer = num_layer
+        self.pe = make_pe(seq_len, d_model)
+        self.embedding = layers.Embedding(vocab_size_enc, d_model)
+        self.enc_layers = [EncoderLayer(d_model, dff, dropout, ln_epsilon, num_head, seq_len) for _ in range(num_layer)]
+        self.dropout = layers.Dropout(dropout)
+
+    def call(self, x, mask, training):
+        x = self.embedding(x, training=training) * tf.math.sqrt(tf.cast(self.d_model, tf.float32)) + self.pe
+        x = self.dropout(x, training=training)
+        for k in range(self.num_layer):
+            x = self.enc_layers[k](x, mask, training)
+        return x
