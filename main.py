@@ -1,3 +1,3 @@
-from vocabulary import vocabulary
+from shuffle import shuffle
 
-vocabulary(['dev.txt', 'test.txt', 'train.txt'])
+shuffle(['dev.txt', 'test.txt', 'train.txt'])
