@@ -10,6 +10,14 @@ def make_pe(seq_len, d_model):
     return tf.cast(pe, tf.float32)
 
 
+def make_look_ahead_mask(seq_len):
+    return 1 - tf.linalg.band_part(tf.ones((seq_len, seq_len)), -1, 0)
+
+
+def make_padding_mask(seq):
+    return tf.cast(tf.math.equal(seq, 0), tf.float32)[:, tf.newaxis, tf.newaxis, :]
+
+
 def self_attention(q, k, v, mask):
     attn_weight = tf.matmul(q, k, transpose_b=True) / tf.math.sqrt(tf.cast(k.shape[-1], tf.float32))
     if mask is not None:
@@ -139,7 +147,9 @@ class Transformer(tf.keras.Model):
                                make_pe(max_seq_len_dec, d_model), vocab_size_dec)
         self.dense = layers.Dense(vocab_size_dec)
 
-    def call(self, x_enc, x_dec, mask, look_ahead_mask, padding_mask, training):
+    def call(self, x_enc, x_dec, training):
+        mask = make_padding_mask(x_enc)
+        combined_mask = tf.maximum(make_look_ahead_mask(x_dec.shape[1]), make_padding_mask(x_dec))
         enc_out = self.encoder(x_enc, mask, training)
-        dec_out = self.decoder(x_dec, enc_out, look_ahead_mask, padding_mask, training)
+        dec_out = self.decoder(x_dec, enc_out, combined_mask, mask, training)
         return self.dense(dec_out, training=training)
