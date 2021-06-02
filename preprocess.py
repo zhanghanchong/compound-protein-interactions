@@ -38,7 +38,7 @@ def make_seq(texts, vocab):
             if texts[i][j] in vocab:
                 seq[i][j + 1] = vocab[texts[i][j]]
         seq[i][len(texts[i]) + 1] = vocab['<end>']
-    return tf.cast(seq, tf.float32)
+    return tf.cast(seq, tf.int64)
 
 
 def make_batch(file, batch_size, vocab_c, vocab_p):

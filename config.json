@@ -6,7 +6,7 @@
     "d_model": 512,
     "dff": 2048,
     "dropout": 0.1,
-    "epoch": 10,
+    "epoch": 25,
     "ln_epsilon": 1e-6,
     "max_len_c": 250,
     "max_len_p": 5000,

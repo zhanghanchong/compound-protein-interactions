@@ -2,11 +2,10 @@ import io
 import json
 import numpy as np
 import tensorflow as tf
-from optimizer import accuracy_function
-from optimizer import loss_function
+from optimizer import accuracy_function_tfm
+from optimizer import loss_function_tfm
 from optimizer import make_optimizer
 from preprocess import make_batch
-from tensorflow.keras import layers
 from tensorflow.keras import metrics
 from transformer import Transformer
 
@@ -16,27 +15,12 @@ with io.open('./vocabularies/compound.json') as file:
     vocab_c = json.load(file)
 with io.open('./vocabularies/protein.json') as file:
     vocab_p = json.load(file)
-
-
-class Classifier(tf.keras.Model):
-    def __init__(self, tfm):
-        super(Classifier, self).__init__()
-        self.tfm = tfm
-        self.dense = layers.Dense(1)
-
-    def call(self, x_enc, x_dec, training):
-        tfm_out = self.tfm(x_enc, x_dec, training)
-        dense_out = self.dense(tfm_out[:, -1, :], training=training)
-        return tf.reshape(dense_out, -1)
-
-
-clf = Classifier(
-    Transformer(config['d_model'], config['dff'], config['dropout'], config['ln_epsilon'], config['max_len_c'],
-                config['max_len_p'], config['num_head'], config['num_layer'], len(vocab_c) + 1, len(vocab_p) + 1))
+tfm = Transformer(config['d_model'], config['dff'], config['dropout'], config['ln_epsilon'], config['max_len_c'],
+                  config['max_len_p'], config['num_head'], config['num_layer'], len(vocab_c) + 1, len(vocab_p) + 1)
 opt = make_optimizer(config['adam_beta_1'], config['adam_beta_2'], config['adam_epsilon'], config['d_model'],
                      config['warmup'])
-ckpt = tf.train.Checkpoint(clf=clf, opt=opt)
-ckpt_manager = tf.train.CheckpointManager(ckpt, './checkpoints', max_to_keep=5)
+ckpt = tf.train.Checkpoint(tfm=tfm, opt=opt)
+ckpt_manager = tf.train.CheckpointManager(ckpt, './checkpoints/pretrain', max_to_keep=5)
 if ckpt_manager.latest_checkpoint:
     ckpt.restore(ckpt_manager.latest_checkpoint)
 train_loss = metrics.Mean(name='train_loss')
@@ -51,16 +35,19 @@ def train(filename):
         with io.open(filename) as file_:
             while 1:
                 batch_id += 1
-                data_c, data_p, data_i = make_batch(file_, config['batch_size'], vocab_c, vocab_p)
+                data_c, data_p_in, _ = make_batch(file_, config['batch_size'], vocab_c, vocab_p)
                 if len(data_c) < config['batch_size']:
                     break
+                data_p_out = np.zeros(data_p_in.shape)
+                data_p_out[:, :-1] = data_p_in[:, 1:]
+                data_p_out = tf.cast(data_p_out, tf.int64)
                 with tf.GradientTape() as tape:
-                    pred = clf(data_c, data_p, True)
-                    loss = loss_function(data_i, pred)
-                grad = tape.gradient(loss, clf.trainable_variables)
-                opt.apply_gradients(zip(grad, clf.trainable_variables))
+                    pred = tfm(data_c, data_p_in, True)
+                    loss = loss_function_tfm(data_p_out, pred)
+                grad = tape.gradient(loss, tfm.trainable_variables)
+                opt.apply_gradients(zip(grad, tfm.trainable_variables))
                 train_loss(loss)
-                train_accuracy(accuracy_function(data_i, pred))
+                train_accuracy(accuracy_function_tfm(data_p_out, pred))
                 print(
                     f'Epoch {i + 1} Batch {batch_id} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
         if (i + 1) % 5 == 0:
@@ -76,11 +63,14 @@ def evaluate(filename):
     cnt_total = 0
     with io.open(filename) as file_:
         while 1:
-            data_c, data_p, data_i = make_batch(file_, 1, vocab_c, vocab_p)
+            data_c, data_p_in, _ = make_batch(file_, 1, vocab_c, vocab_p)
             if len(data_c) < 1:
                 break
-            pred = clf(data_c, data_p, False)
-            cnt_correct += accuracy_function(data_i, pred)
+            data_p_out = np.zeros(data_p_in.shape)
+            data_p_out[:, :-1] = data_p_in[:, 1:]
+            data_p_out = tf.cast(data_p_out, tf.int64)
+            pred = tfm(data_c, data_p_in, False)
+            cnt_correct += accuracy_function_tfm(data_p_out, pred)
             cnt_total += 1
     return float(cnt_correct / cnt_total)
 
