@@ -5,7 +5,7 @@ import tensorflow as tf
 from optimizer import accuracy_function
 from optimizer import loss_function
 from optimizer import make_optimizer
-from preprocess import make_seq
+from preprocess import make_batch
 from tensorflow.keras import layers
 from tensorflow.keras import metrics
 from transformer import Transformer
@@ -51,21 +51,9 @@ def train(filename):
         with io.open(filename) as file_:
             while 1:
                 batch_id += 1
-                cps = []
-                pts = []
-                data_i = np.zeros(config['batch_size'])
-                for j in range(config['batch_size']):
-                    cpi = file_.readline()
-                    if len(cpi) == 0:
-                        break
-                    cp, pt, itr = cpi.split(' ')
-                    cps.append(cp)
-                    pts.append(pt)
-                    data_i[j] = int(itr)
-                if len(cps) < config['batch_size']:
+                data_c, data_p, data_i = make_batch(file_, config['batch_size'], vocab_c, vocab_p)
+                if len(data_c) < config['batch_size']:
                     break
-                data_c = make_seq(cps, vocab_c)
-                data_p = make_seq(pts, vocab_p)
                 with tf.GradientTape() as tape:
                     pred = clf(data_c, data_p, True)
                     loss = loss_function(data_i, pred)
@@ -88,14 +76,11 @@ def evaluate(filename):
     cnt_total = 0
     with io.open(filename) as file_:
         while 1:
-            cpi = file_.readline()
-            if len(cpi) == 0:
+            data_c, data_p, data_i = make_batch(file_, 1, vocab_c, vocab_p)
+            if len(data_c) < 1:
                 break
-            cp, pt, itr = cpi.split(' ')
-            data_c = make_seq([cp], vocab_c)
-            data_p = make_seq([pt], vocab_p)
             pred = clf(data_c, data_p, False)
-            cnt_correct += accuracy_function(np.array([int(itr)]), pred)
+            cnt_correct += accuracy_function(data_i, pred)
             cnt_total += 1
     return float(cnt_correct / cnt_total)
 

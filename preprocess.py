@@ -39,3 +39,18 @@ def make_seq(texts, vocab):
                 seq[i][j + 1] = vocab[texts[i][j]]
         seq[i][len(texts[i]) + 1] = vocab['<end>']
     return tf.cast(seq, tf.float32)
+
+
+def make_batch(file, batch_size, vocab_c, vocab_p):
+    cps = []
+    pts = []
+    data_i = np.zeros(batch_size)
+    for i in range(batch_size):
+        cpi = file.readline()
+        if len(cpi) == 0:
+            break
+        cp, pt, itr = cpi.split(' ')
+        cps.append(cp)
+        pts.append(pt)
+        data_i[i] = int(itr)
+    return make_seq(cps, vocab_c), make_seq(pts, vocab_p), tf.cast(data_i, tf.int64)
