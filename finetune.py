@@ -17,13 +17,13 @@ with io.open('./vocabularies/protein.json') as file:
     vocab_p = json.load(file)
 tfm = Transformer(config['d_model'], config['dff'], config['dropout'], config['ln_epsilon'], config['max_len_c'],
                   config['max_len_p'], config['num_head'], config['num_layer'], len(vocab_c) + 1, len(vocab_p) + 1)
-opt = make_optimizer(config['adam_beta_1'], config['adam_beta_2'], config['adam_epsilon'], config['d_model'],
-                     config['warmup'])
-ckpt_tfm = tf.train.Checkpoint(tfm=tfm, opt=opt)
+ckpt_tfm = tf.train.Checkpoint(tfm=tfm)
 ckpt_manager_tfm = tf.train.CheckpointManager(ckpt_tfm, './checkpoints/pretrain', max_to_keep=5)
 if ckpt_manager_tfm.latest_checkpoint:
     ckpt_tfm.restore(ckpt_manager_tfm.latest_checkpoint)
 clf = Classifier(tfm)
+opt = make_optimizer(config['adam_beta_1'], config['adam_beta_2'], config['adam_epsilon'], config['d_model'],
+                     config['warmup'])
 ckpt_clf = tf.train.Checkpoint(clf=clf, opt=opt)
 ckpt_manager_clf = tf.train.CheckpointManager(ckpt_clf, './checkpoints/finetune', max_to_keep=5)
 if ckpt_manager_clf.latest_checkpoint:
