@@ -153,3 +153,15 @@ class Transformer(tf.keras.Model):
         enc_out = self.encoder(x_enc, mask, training)
         dec_out = self.decoder(x_dec, enc_out, combined_mask, mask, training)
         return self.dense(dec_out, training=training)
+
+
+class Classifier(tf.keras.Model):
+    def __init__(self, tfm):
+        super(Classifier, self).__init__()
+        self.tfm = tfm
+        self.dense = layers.Dense(1)
+
+    def call(self, x_enc, x_dec, training):
+        tfm_out = self.tfm(x_enc, x_dec, training)
+        dense_out = self.dense(tfm_out[:, -1, :], training=training)
+        return tf.reshape(dense_out, -1)

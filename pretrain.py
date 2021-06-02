@@ -9,7 +9,7 @@ from preprocess import make_batch
 from tensorflow.keras import metrics
 from transformer import Transformer
 
-with io.open('./config.json') as file:
+with io.open('./parameters.json') as file:
     config = json.load(file)
 with io.open('./vocabularies/compound.json') as file:
     vocab_c = json.load(file)
