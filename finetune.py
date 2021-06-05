@@ -52,12 +52,11 @@ def train(filename):
                 train_accuracy(accuracy_function_clf(data_i, pred))
                 print(
                     f'Epoch {i + 1} Batch {batch_id} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
-        if (i + 1) % 5 == 0:
-            ckpt_manager_clf.save()
+        ckpt_manager_clf.save()
         print(f'Epoch {i + 1} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
 
 
-train('./datasets/shuffle/train.txt')
+train('./datasets/shuffle/large_data.csv')
 
 
 def evaluate(filename):
@@ -74,5 +73,4 @@ def evaluate(filename):
     return float(cnt_correct / cnt_total)
 
 
-print(f"Development Set Accuracy {evaluate('./datasets/shuffle/dev.txt'):.4f}")
-print(f"Test Set Accuracy {evaluate('./datasets/shuffle/test.txt'):.4f}")
+print(f"Test Set Accuracy {evaluate('./datasets/shuffle/small_data.csv'):.4f}")

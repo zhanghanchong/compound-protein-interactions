@@ -11,8 +11,8 @@ def preprocess(filenames):
     for filename in filenames:
         with io.open('./datasets/raw/' + filename) as file:
             cpis = file.read().split('\n')
-        tokenizer_c.fit_on_texts(['<start> ' + ' '.join(cpi.split(' ')[0]) + ' <end>' for cpi in cpis])
-        tokenizer_p.fit_on_texts(['<start> ' + ' '.join(cpi.split(' ')[1]) + ' <end>' for cpi in cpis])
+        tokenizer_c.fit_on_texts(['<start> ' + ' '.join(cpi.split(',')[0]) + ' <end>' for cpi in cpis])
+        tokenizer_p.fit_on_texts(['<start> ' + ' '.join(cpi.split(',')[1]) + ' <end>' for cpi in cpis])
         np.random.shuffle(cpis)
         with io.open('./datasets/shuffle/' + filename, 'w') as file:
             for i in range(len(cpis)):
@@ -49,7 +49,7 @@ def make_batch(file, batch_size, vocab_c, vocab_p):
         cpi = file.readline()
         if len(cpi) == 0:
             break
-        cp, pt, itr = cpi.split(' ')
+        cp, pt, itr = cpi.split(',')
         cps.append(cp)
         pts.append(pt)
         data_i[i] = int(itr)
