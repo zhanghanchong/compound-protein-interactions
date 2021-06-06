@@ -13,7 +13,8 @@ with io.open('./vocabularies/protein.json') as file:
     vocab_p = json.load(file)
 clf = Classifier(
     Transformer(config['d_model'], config['dff'], config['dropout'], config['ln_epsilon'], config['max_len_c'],
-                config['max_len_p'], config['num_head'], config['num_layer'], len(vocab_c) + 1, len(vocab_p) + 1))
+                config['max_len_p'], config['num_head'], config['num_layer'], config['vocab_size_c'] + 1,
+                config['vocab_size_p'] + 1))
 ckpt = tf.train.Checkpoint(clf=clf)
 ckpt_manager = tf.train.CheckpointManager(ckpt, './checkpoints/finetune', max_to_keep=5)
 if ckpt_manager.latest_checkpoint:
@@ -21,7 +22,7 @@ if ckpt_manager.latest_checkpoint:
 
 
 def inference(molecule_smiles: str, protein_fasta: str) -> float:
-    data_c = make_seq([molecule_smiles], vocab_c)
-    data_p = make_seq([protein_fasta], vocab_p)
+    data_c = make_seq([molecule_smiles], vocab_c, config['vocab_size_c'], config['word_len'])
+    data_p = make_seq([protein_fasta], vocab_p, config['vocab_size_p'], config['word_len'])
     pred = clf(data_c, data_p, False)
     return float(tf.sigmoid(pred))

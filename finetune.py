@@ -16,7 +16,8 @@ with io.open('./vocabularies/compound.json') as file:
 with io.open('./vocabularies/protein.json') as file:
     vocab_p = json.load(file)
 tfm = Transformer(config['d_model'], config['dff'], config['dropout'], config['ln_epsilon'], config['max_len_c'],
-                  config['max_len_p'], config['num_head'], config['num_layer'], len(vocab_c) + 1, len(vocab_p) + 1)
+                  config['max_len_p'], config['num_head'], config['num_layer'], config['vocab_size_c'] + 1,
+                  config['vocab_size_p'] + 1)
 ckpt_tfm = tf.train.Checkpoint(tfm=tfm)
 ckpt_manager_tfm = tf.train.CheckpointManager(ckpt_tfm, './checkpoints/pretrain', max_to_keep=5)
 if ckpt_manager_tfm.latest_checkpoint:
@@ -40,7 +41,8 @@ def train(filename):
         with io.open(filename) as file_:
             while 1:
                 batch_id += 1
-                data_c, data_p, data_i = make_batch(file_, config['batch_size'], vocab_c, vocab_p)
+                data_c, data_p, data_i = make_batch(file_, config['batch_size'], vocab_c, vocab_p,
+                                                    config['vocab_size_c'], config['vocab_size_p'], config['word_len'])
                 if len(data_c) < config['batch_size']:
                     break
                 with tf.GradientTape() as tape:
@@ -64,7 +66,8 @@ def evaluate(filename):
     cnt_total = 0
     with io.open(filename) as file_:
         while 1:
-            data_c, data_p, data_i = make_batch(file_, 1, vocab_c, vocab_p)
+            data_c, data_p, data_i = make_batch(file_, 1, vocab_c, vocab_p, config['vocab_size_c'],
+                                                config['vocab_size_p'], config['word_len'])
             if len(data_c) < 1:
                 break
             pred = clf(data_c, data_p, False)
