@@ -56,7 +56,7 @@ def train(filename):
         print(f'Epoch {i + 1} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
 
 
-# train('./datasets/shuffle/large_data.csv')
+train('./datasets/shuffle/large_data.csv')
 
 
 def evaluate(filename):
