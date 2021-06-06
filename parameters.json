@@ -6,7 +6,7 @@
     "d_model": 128,
     "dff": 512,
     "dropout": 0.1,
-    "epoch": 1,
+    "epoch": 5,
     "ln_epsilon": 1e-6,
     "max_len_c": 100,
     "max_len_p": 100,
@@ -15,5 +15,6 @@
     "vocab_size_c": 1000,
     "vocab_size_p": 1000,
     "warmup": 4000,
-    "word_len": 100
+    "word_len_c": 20,
+    "word_len_p": 100
 }
