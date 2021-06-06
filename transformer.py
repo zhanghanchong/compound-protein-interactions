@@ -14,8 +14,14 @@ def make_look_ahead_mask(seq_len):
     return 1 - tf.linalg.band_part(tf.ones((seq_len, seq_len)), -1, 0)
 
 
-def make_padding_mask(seq):
-    return tf.cast(tf.math.equal(seq, 0), tf.float32)[:, tf.newaxis, tf.newaxis, :]
+def make_padding_mask(seq, max_seq_len):
+    mask = tf.cast(tf.math.equal(seq, 0), tf.float32)
+    while mask.shape[1] > max_seq_len:
+        if mask.shape[1] % 2 == 1:
+            mask = tf.concat((mask, tf.ones((mask.shape[0], 1))), axis=1)
+        mask = tf.reshape(mask, (mask.shape[0], mask.shape[1] // 2, 2))
+        mask = tf.reduce_min(mask, axis=2)
+    return mask[:, tf.newaxis, tf.newaxis, :]
 
 
 def self_attention(q, k, v, mask):
@@ -99,6 +105,20 @@ class DecoderLayer(layers.Layer):
         return ln3_out
 
 
+class Condense(layers.Layer):
+    def __init__(self, max_seq_len):
+        super(Condense, self).__init__()
+        self.max_seq_len = max_seq_len
+
+    def call(self, x):
+        while x.shape[1] > self.max_seq_len:
+            if x.shape[1] % 2 == 1:
+                x = tf.concat((x, x[:, -1, :][:, tf.newaxis, :]), axis=1)
+            x = tf.reshape(x, (x.shape[0], x.shape[1] // 2, 2, x.shape[2]))
+            x = tf.reduce_mean(x, axis=2)
+        return x
+
+
 class Encoder(layers.Layer):
     def __init__(self, d_model, dff, dropout, ln_epsilon, num_head, num_layer, pe, vocab_size):
         super(Encoder, self).__init__()
@@ -106,11 +126,13 @@ class Encoder(layers.Layer):
         self.num_layer = num_layer
         self.pe = pe
         self.embedding = layers.Embedding(vocab_size, d_model)
+        self.condense = Condense(pe.shape[0])
         self.enc_layers = [EncoderLayer(d_model, dff, dropout, ln_epsilon, num_head) for _ in range(num_layer)]
         self.dropout = layers.Dropout(dropout)
 
     def call(self, x, mask, training):
         x = self.embedding(x, training=training) * tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x = self.condense(x)
         x += self.pe[:x.shape[1], :]
         x = self.dropout(x, training=training)
         for k in range(self.num_layer):
@@ -125,11 +147,13 @@ class Decoder(layers.Layer):
         self.num_layer = num_layer
         self.pe = pe
         self.embedding = layers.Embedding(vocab_size, d_model)
+        self.condense = Condense(pe.shape[0])
         self.dec_layers = [DecoderLayer(d_model, dff, dropout, ln_epsilon, num_head) for _ in range(num_layer)]
         self.dropout = layers.Dropout(dropout)
 
     def call(self, x, enc_out, look_ahead_mask, padding_mask, training):
         x = self.embedding(x, training=training) * tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x = self.condense(x)
         x += self.pe[:x.shape[1], :]
         x = self.dropout(x, training=training)
         for k in range(self.num_layer):
@@ -141,6 +165,8 @@ class Transformer(tf.keras.Model):
     def __init__(self, d_model, dff, dropout, ln_epsilon, max_seq_len_enc, max_seq_len_dec, num_head, num_layer,
                  vocab_size_enc, vocab_size_dec):
         super(Transformer, self).__init__()
+        self.max_seq_len_enc = max_seq_len_enc
+        self.max_seq_len_dec = max_seq_len_dec
         self.encoder = Encoder(d_model, dff, dropout, ln_epsilon, num_head, num_layer,
                                make_pe(max_seq_len_enc, d_model), vocab_size_enc)
         self.decoder = Decoder(d_model, dff, dropout, ln_epsilon, num_head, num_layer,
@@ -148,10 +174,11 @@ class Transformer(tf.keras.Model):
         self.dense = layers.Dense(vocab_size_dec)
 
     def call(self, x_enc, x_dec, training):
-        mask = make_padding_mask(x_enc)
-        combined_mask = tf.maximum(make_look_ahead_mask(x_dec.shape[1]), make_padding_mask(x_dec))
-        enc_out = self.encoder(x_enc, mask, training)
-        dec_out = self.decoder(x_dec, enc_out, combined_mask, mask, training)
+        padding_mask_enc = make_padding_mask(x_enc, self.max_seq_len_enc)
+        padding_mask_dec = make_padding_mask(x_dec, self.max_seq_len_dec)
+        combined_mask = tf.maximum(make_look_ahead_mask(padding_mask_dec.shape[3]), padding_mask_dec)
+        enc_out = self.encoder(x_enc, padding_mask_enc, training)
+        dec_out = self.decoder(x_dec, enc_out, combined_mask, padding_mask_enc, training)
         return self.dense(dec_out, training=training)
 
 

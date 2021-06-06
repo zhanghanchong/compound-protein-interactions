@@ -56,7 +56,7 @@ def train(filename):
         print(f'Epoch {i + 1} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
 
 
-train('./datasets/shuffle/large_data.csv')
+# train('./datasets/shuffle/large_data.csv')
 
 
 def evaluate(filename):
@@ -70,7 +70,7 @@ def evaluate(filename):
             pred = clf(data_c, data_p, False)
             cnt_correct += accuracy_function_clf(data_i, pred)
             cnt_total += 1
-    return float(cnt_correct / cnt_total)
+            print(f'Test Set Accuracy {int(cnt_correct)}/{cnt_total}={float(cnt_correct / cnt_total):.4f}')
 
 
-print(f"Test Set Accuracy {evaluate('./datasets/shuffle/small_data.csv'):.4f}")
+evaluate('./datasets/shuffle/small_data.csv')

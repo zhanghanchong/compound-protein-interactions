@@ -35,19 +35,16 @@ def train(filename):
         with io.open(filename) as file_:
             while 1:
                 batch_id += 1
-                data_c, data_p_in, _ = make_batch(file_, config['batch_size'], vocab_c, vocab_p)
+                data_c, data_p, _ = make_batch(file_, config['batch_size'], vocab_c, vocab_p)
                 if len(data_c) < config['batch_size']:
                     break
-                data_p_out = np.zeros(data_p_in.shape)
-                data_p_out[:, :-1] = data_p_in[:, 1:]
-                data_p_out = tf.cast(data_p_out, tf.int64)
                 with tf.GradientTape() as tape:
-                    pred = tfm(data_c, data_p_in, True)
-                    loss = loss_function_tfm(data_p_out, pred)
+                    pred = tfm(data_c, data_p, True)
+                    loss = loss_function_tfm(data_p[:, :pred.shape[1]], pred)
                 grad = tape.gradient(loss, tfm.trainable_variables)
                 opt.apply_gradients(zip(grad, tfm.trainable_variables))
                 train_loss(loss)
-                train_accuracy(accuracy_function_tfm(data_p_out, pred))
+                train_accuracy(accuracy_function_tfm(data_p[:, :pred.shape[1]], pred))
                 print(
                     f'Epoch {i + 1} Batch {batch_id} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
         ckpt_manager.save()
@@ -62,16 +59,13 @@ def evaluate(filename):
     cnt_total = 0
     with io.open(filename) as file_:
         while 1:
-            data_c, data_p_in, _ = make_batch(file_, 1, vocab_c, vocab_p)
+            data_c, data_p, _ = make_batch(file_, 1, vocab_c, vocab_p)
             if len(data_c) < 1:
                 break
-            data_p_out = np.zeros(data_p_in.shape)
-            data_p_out[:, :-1] = data_p_in[:, 1:]
-            data_p_out = tf.cast(data_p_out, tf.int64)
-            pred = tfm(data_c, data_p_in, False)
-            cnt_correct += accuracy_function_tfm(data_p_out, pred)
+            pred = tfm(data_c, data_p, False)
+            cnt_correct += accuracy_function_tfm(data_p[:, :pred.shape[1]], pred)
             cnt_total += 1
-    return float(cnt_correct / cnt_total)
+            print(f'Test Set Accuracy {cnt_total} {(cnt_correct / cnt_total):.4f}')
 
 
-print(f"Test Set Accuracy {evaluate('./datasets/shuffle/small_data.csv'):.4f}")
+evaluate('./datasets/shuffle/small_data.csv')
