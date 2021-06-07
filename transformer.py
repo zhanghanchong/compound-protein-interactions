@@ -141,8 +141,6 @@ class Transformer(tf.keras.Model):
     def __init__(self, d_model, dff, dropout, ln_epsilon, max_seq_len_enc, max_seq_len_dec, num_head, num_layer,
                  vocab_size_enc, vocab_size_dec):
         super(Transformer, self).__init__()
-        self.max_seq_len_enc = max_seq_len_enc
-        self.max_seq_len_dec = max_seq_len_dec
         self.encoder = Encoder(d_model, dff, dropout, ln_epsilon, num_head, num_layer,
                                make_pe(max_seq_len_enc, d_model), vocab_size_enc)
         self.decoder = Decoder(d_model, dff, dropout, ln_epsilon, num_head, num_layer,
@@ -150,10 +148,6 @@ class Transformer(tf.keras.Model):
         self.dense = layers.Dense(vocab_size_dec)
 
     def call(self, x_enc, x_dec, training):
-        if x_enc.shape[1] > self.max_seq_len_enc:
-            x_enc = x_enc[:, :self.max_seq_len_enc]
-        if x_dec.shape[1] > self.max_seq_len_dec:
-            x_dec = x_dec[:, :self.max_seq_len_dec]
         mask = make_padding_mask(x_enc)
         combined_mask = tf.maximum(make_look_ahead_mask(x_dec.shape[1]), make_padding_mask(x_dec))
         enc_out = self.encoder(x_enc, mask, training)

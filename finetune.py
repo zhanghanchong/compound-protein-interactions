@@ -41,9 +41,9 @@ def train(filename):
         with io.open(filename) as file_:
             while 1:
                 batch_id += 1
-                data_c, data_p, data_i = make_batch(file_, config['batch_size'], vocab_c, vocab_p,
-                                                    config['vocab_size_c'], config['vocab_size_p'],
-                                                    config['word_len_c'], config['word_len_p'])
+                data_c, data_p, data_i = make_batch(file_, config['batch_size'], config['max_len_c'],
+                                                    config['max_len_p'], vocab_c, vocab_p, config['vocab_size_c'],
+                                                    config['vocab_size_p'], config['word_len_c'], config['word_len_p'])
                 if len(data_c) < config['batch_size']:
                     break
                 with tf.GradientTape() as tape:
@@ -67,8 +67,9 @@ def evaluate(filename):
     cnt_total = 0
     with io.open(filename) as file_:
         while 1:
-            data_c, data_p, data_i = make_batch(file_, 1, vocab_c, vocab_p, config['vocab_size_c'],
-                                                config['vocab_size_p'], config['word_len_c'], config['word_len_p'])
+            data_c, data_p, data_i = make_batch(file_, 1, config['max_len_c'], config['max_len_p'], vocab_c, vocab_p,
+                                                config['vocab_size_c'], config['vocab_size_p'], config['word_len_c'],
+                                                config['word_len_p'])
             if len(data_c) < 1:
                 break
             pred = clf(data_c, data_p, False)

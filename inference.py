@@ -22,7 +22,7 @@ if ckpt_manager.latest_checkpoint:
 
 
 def inference(molecule_smiles: str, protein_fasta: str) -> float:
-    data_c = make_seq([molecule_smiles], vocab_c, config['vocab_size_c'], config['word_len_c'])
-    data_p = make_seq([protein_fasta], vocab_p, config['vocab_size_p'], config['word_len_p'])
+    data_c = make_seq([molecule_smiles], config['max_len_c'], vocab_c, config['vocab_size_c'], config['word_len_c'])
+    data_p = make_seq([protein_fasta], config['max_len_p'], vocab_p, config['vocab_size_p'], config['word_len_p'])
     pred = clf(data_c, data_p, False)
     return float(tf.sigmoid(pred))
