@@ -42,12 +42,12 @@ def train(filename):
                 if len(data_c) < config['batch_size']:
                     break
                 with tf.GradientTape() as tape:
-                    pred = tfm(data_c, data_p, True)
-                    loss = loss_function_tfm(data_p, pred)
+                    pred = tfm(data_c, data_p[:, :-1], True)
+                    loss = loss_function_tfm(data_p[:, 1:], pred)
                 grad = tape.gradient(loss, tfm.trainable_variables)
                 opt.apply_gradients(zip(grad, tfm.trainable_variables))
                 train_loss(loss)
-                train_accuracy(accuracy_function_tfm(data_p, pred))
+                train_accuracy(accuracy_function_tfm(data_p[:, 1:], pred))
                 print(
                     f"File {filename.split('/')[-1]} Epoch {i + 1} Batch {batch_id} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}")
         ckpt_manager.save()
@@ -68,8 +68,8 @@ def evaluate(filename):
                                            config['word_len_p'])
             if len(data_c) < 1:
                 break
-            pred = tfm(data_c, data_p, False)
-            cnt_correct += accuracy_function_tfm(data_p, pred)
+            pred = tfm(data_c, data_p[:, :-1], False)
+            cnt_correct += accuracy_function_tfm(data_p[:, 1:], pred)
             cnt_total += 1
             print(f'Test Set Accuracy {cnt_total} {(cnt_correct / cnt_total):.4f}')
 
