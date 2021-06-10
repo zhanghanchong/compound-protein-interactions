@@ -19,7 +19,7 @@ tfm = Transformer(config['d_model'], config['dff'], config['dropout'], config['l
                   config['max_len_p'], config['num_head'], config['num_layer'], config['vocab_size_c'] + 1,
                   config['vocab_size_p'] + 1)
 opt = make_optimizer(config['adam_beta_1'], config['adam_beta_2'], config['adam_epsilon'], config['d_model'],
-                     config['warmup'])
+                     config['warmup_pretrain'])
 ckpt = tf.train.Checkpoint(tfm=tfm, opt=opt)
 ckpt_manager = tf.train.CheckpointManager(ckpt, './checkpoints/pretrain', max_to_keep=5)
 if ckpt_manager.latest_checkpoint:

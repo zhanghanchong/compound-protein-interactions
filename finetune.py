@@ -25,7 +25,7 @@ if ckpt_manager_tfm.latest_checkpoint:
     ckpt_tfm.restore(ckpt_manager_tfm.latest_checkpoint)
 clf = Classifier(tfm)
 opt = make_optimizer(config['adam_beta_1'], config['adam_beta_2'], config['adam_epsilon'], config['d_model'],
-                     config['warmup'])
+                     config['warmup_finetune'])
 ckpt_clf = tf.train.Checkpoint(clf=clf, opt=opt)
 ckpt_manager_clf = tf.train.CheckpointManager(ckpt_clf, './checkpoints/finetune', max_to_keep=5)
 if ckpt_manager_clf.latest_checkpoint:
