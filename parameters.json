@@ -14,7 +14,7 @@
     "num_layer": 12,
     "vocab_size_c": 1000,
     "vocab_size_p": 1000,
-    "warmup_finetune": 200000,
+    "warmup_finetune": 40000,
     "warmup_pretrain": 10000,
     "word_len_c": 2,
     "word_len_p": 20
