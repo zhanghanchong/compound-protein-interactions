@@ -1,6 +1,5 @@
 import io
 import json
-import random
 import tensorflow as tf
 from optimizer import accuracy_function_tfm
 from optimizer import loss_function_tfm
@@ -49,13 +48,13 @@ def train(filename):
                 train_loss(loss)
                 train_accuracy(accuracy_function_tfm(data_p[:, 1:], pred))
                 print(
-                    f"File {filename.split('/')[-1]} Epoch {i + 1} Batch {batch_id} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}")
+                    f"Epoch {i + 1} Batch {batch_id} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}")
         ckpt_manager.save()
         print(
-            f"File {filename.split('/')[-1]} Epoch {i + 1} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}")
+            f"Epoch {i + 1} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}")
 
 
-train(f'./datasets/shuffle/large_data_{random.randint(0, 8)}.csv')
+train(f'./datasets/shuffle/large_data.csv')
 
 
 def evaluate(filename):

@@ -11,7 +11,7 @@
     "max_len_c": 100,
     "max_len_p": 100,
     "num_head": 8,
-    "num_layer": 12,
+    "num_layer": 4,
     "vocab_size_c": 1000,
     "vocab_size_p": 1000,
     "warmup_finetune": 40000,
